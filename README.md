@@ -20,6 +20,8 @@ Install package:
 
 ```bash
 pip install -e .
+# OR
+pip install -e .[test]  # For Running tests
 ```
 
 
@@ -27,4 +29,10 @@ pip install -e .
 
 ```bash
 zmq-echo
+```
+
+
+## Running test
+```bash
+pytest -s tests/test_broker_logger.py
 ```
