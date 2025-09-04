@@ -1,0 +1,6 @@
+venv/
+venv_zmqu/
+
+__pycache__/
+*.egg-info/
+*.eggs/

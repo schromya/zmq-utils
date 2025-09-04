@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zmq-utils"
+version = "0.0.1"
+authors = [
+  { name="Mya Schroder", email="schromya@gmail.com" },
+]
+description = "ZeroMQ logging and monitoring utilities"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+dependencies = ["pyzmq"]
+
+
+[project.urls]
+Homepage = "https://github.com/schromya/zmq-utils"
+Issues = "https://github.com/schromya/zmq-utils/issues"
+
+
+[project.scripts]
+zmq-echo = "zmq_utils.cli_echo:main"
