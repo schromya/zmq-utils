@@ -26,6 +26,5 @@ pip install -e .
 ## Running
 
 ```bash
-python -m zmq_utils.cli
 zmq-echo
 ```
