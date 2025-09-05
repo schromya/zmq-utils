@@ -1,12 +1,11 @@
 from zmq_utils.utils_encoding import encode_frame, encode_frames
+from zmq_utils.utils_writer import make_writer
 
 from enum import Enum
 import time
 import json
 import signal
-import sys
 import threading
-
 
 import zmq
 
@@ -69,19 +68,16 @@ class Logger():
         self.sub.setsockopt(zmq.RCVTIMEO, 50)  # Non blocking
         time.sleep(0.2)  # slow-joiner guard to avoid missing initial msgs
 
+        writer, f = make_writer(self.storage_path)
+
         manifest = {
             "version": "1.0",
             "created_at": time.time(),
             "schema": "socket_pattern|ts|topic?|frames",
             "socket_pattern": self.socket_pattern.value,
         }
-        manifest_dump = json.dumps(manifest,)
-        if self.storage_path:
-            self.file = open(self.storage_path, "w", encoding="utf-8")
-            self.file.write(manifest_dump + "\n")
-            self.file.flush()
-        else:
-            print(manifest_dump)
+
+        writer(json.dumps(manifest))
         
         # Only install signal handlers when running in main thread (non-threaded mode)
         if threading.current_thread() is threading.main_thread():
@@ -112,13 +108,9 @@ class Logger():
                     "frames": enc_frames,
                     "topic": topic
                 }
-                record_dump = json.dumps(record, ensure_ascii=False)
 
-                if self.storage_path:
-                    self.file.write(record_dump + "\n")
-                    self.file.flush()
-                else:
-                    print(record_dump)
+                writer(json.dumps(record, ensure_ascii=False))
+
         finally:
             # Shutdown sequence 
             if self.sub:
