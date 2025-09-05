@@ -34,5 +34,5 @@ zmq-echo
 
 ## Running test
 ```bash
-pytest -s tests/test_broker_logger.py
+pytest -s tests/test_logger.py
 ```

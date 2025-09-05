@@ -1,4 +1,4 @@
-from zmq_utils.utils import encode_frame, encode_frames
+from zmq_utils.utils_encoding import encode_frame, encode_frames
 
 from enum import Enum
 import time
@@ -42,29 +42,19 @@ class Logger():
         self.storage_path = storage_path
         self.file = None
         self.sub = None
+        self.stop_event = threading.Event()
 
 
-    def shutdown(self, *_args, exit_on_shutdown=False):
+    def shutdown(self, *_args):
         """
-        Safely stops logging. Should not be called from log_thread.
+        Safely stops logging. Should NOT be called from log_thread.
         """
 
-        # Causes rec_multipart in while loop to stop safely
-        try:
-            if self.sub:
-                self.sub.close(0)
-                
-        finally:
-            self.sub = None
-        try:
-            if self.file:
-                self.file.close()
-            
-        finally:
-            if exit_on_shutdown:
-                sys.exit(0)
-            elif self.log_thread and threading.current_thread() != self.log_thread:
-                self.log_thread.join()
+        self.stop_event.set()
+
+        # Wait for thread to finish if its running
+        if self.log_thread and threading.current_thread() is not self.log_thread:
+            self.log_thread.join()
 
 
     def log_listener(self):
@@ -79,7 +69,6 @@ class Logger():
         self.sub.setsockopt(zmq.RCVTIMEO, 50)  # Non blocking
         time.sleep(0.2)  # slow-joiner guard to avoid missing initial msgs
 
-        # open file (if any) and write manifest/header
         manifest = {
             "version": "1.0",
             "created_at": time.time(),
@@ -94,48 +83,55 @@ class Logger():
         else:
             print(manifest_dump)
         
-        # Only shutdown when interrupted if not threaded
+        # Only install signal handlers when running in main thread (non-threaded mode)
         if threading.current_thread() is threading.main_thread():
-            signal.signal(signal.SIGINT, lambda *a: self.shutdown(exit_on_shutdown=True))
-            signal.signal(signal.SIGTERM, lambda *a: self.shutdown(exit_on_shutdown=True))
+            signal.signal(signal.SIGINT, self.shutdown)
+            # SIGTERM may not exist on all platforms
+            if hasattr(signal, "SIGTERM"):
+                signal.signal(signal.SIGTERM, self.shutdown)
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    frames = self.sub.recv_multipart() 
+                except zmq.Again:
+                    continue  
 
-        while self.sub:
-            try:
-                frames = self.sub.recv_multipart()   # may raise zmq.Again on timeout
-            except zmq.Again:
-                continue  
+                ts = time.time()
 
-            ts = time.time()
+                if self.socket_pattern == SocketPattern.PUB_SUB and frames:
+                    topic = encode_frame(frames[0])
+                    enc_frames = encode_frames(frames[1:])
+                else:
+                    # Default behavior for PUSH/PULL: no topic; keep all frames as payload.
+                    topic = ""
+                    enc_frames = encode_frames(frames)
 
-            if self.socket_pattern == SocketPattern.PUB_SUB and frames:
-                topic = encode_frame(frames[0])
-                enc_frames = encode_frames(frames[1:])
-            else:
-                # Default behavior for PUSH/PULL: no topic; keep all frames as payload.
-                topic = ""
-                enc_frames = encode_frames(frames)
+                record = {
+                    "socket_pattern": self.socket_pattern.value,
+                    "ts": ts,
+                    "frames": enc_frames,
+                    "topic": topic
+                }
+                record_dump = json.dumps(record, ensure_ascii=False)
 
-            record = {
-                "socket_pattern": self.socket_pattern.value,
-                "ts": ts,
-                "frames": enc_frames,
-                "topic": topic
-            }
-            record_dump = json.dumps(record, ensure_ascii=False)
+                if self.storage_path:
+                    self.file.write(record_dump + "\n")
+                    self.file.flush()
+                else:
+                    print(record_dump)
+        finally:
+            # Shutdown sequence 
+            if self.sub:
+                self.sub.close(0)
+            if self.file:
+                self.file.close()
 
-            if self.storage_path:
-                self.file.write(record_dump + "\n")
-                self.file.flush()
-            else:
-                print(record_dump)
-            
-    
     def run_threaded_logging(self):
         """
         Starts the logger in its own thread.
         """
 
         self.log_thread = threading.Thread(target=self.log_listener, 
-                                      daemon=True)
+                                      daemon=False)
         self.log_thread.start()
         
