@@ -23,5 +23,6 @@ def make_writer(storage_path: str | None) -> Tuple[Callable[[str], None], TextIO
             f.flush()
 
         return write, f
+    
     else:
-        return (lambda s: print(s, end="")), None
+        return (lambda s: print(s)), None

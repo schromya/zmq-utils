@@ -4,9 +4,7 @@ import time
 import json
 from pathlib import Path
 
-
 import zmq
-import pytest
 
 
 HOST = '127.0.0.1'
@@ -23,7 +21,7 @@ def test_pub_sub_logging(tmp_path:Path):
     
     log_path = tmp_path / 'log.json'
     logger = Logger(HOST, port, 'pub_sub', str(log_path))
-    logger.run_threaded_logging()
+    logger.run_threaded_logger()
     time.sleep(0.5)
     
     

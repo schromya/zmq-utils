@@ -1,23 +1,14 @@
-from zmq_utils.utils_encoding import encode_frame, encode_frames
-from zmq_utils.utils_writer import make_writer
+from zmq_utils.socket_pattern import SocketPattern
 
-from enum import Enum
+from zmq_utils.utils_frames import process_frames
+from zmq_utils.utils_writer import make_writer
+from zmq_utils.utils_signal import install_signal_handlers
+
 import time
 import json
-import signal
 import threading
 
 import zmq
-
-
-class SocketPattern(Enum):
-    PUSH_PULL = "push_pull"
-    PUB_SUB = "pub_sub"
-    # REQ_REP = "req_rep"
-    # DEALER_ROUTER = "dealer_router"
-    # XPUB_XSUB = "xpub_xsub"
-    # PAIR = "pair"
-    # STREAM = "stream"
 
 
 class Logger():
@@ -41,6 +32,7 @@ class Logger():
         self.storage_path = storage_path
         self.file = None
         self.sub = None
+        self.log_thread = None
         self.stop_event = threading.Event()
 
 
@@ -56,7 +48,7 @@ class Logger():
             self.log_thread.join()
 
 
-    def log_listener(self):
+    def run_logger(self):
         """
         Connect to capture PUB and write records (manifest + JSONL messages).
         Each record includes: socket_pattern, ts, optional topic, frames.
@@ -66,9 +58,9 @@ class Logger():
         self.sub.connect(self.log_endpoint)
         self.sub.setsockopt_string(zmq.SUBSCRIBE, "")
         self.sub.setsockopt(zmq.RCVTIMEO, 50)  # Non blocking
-        time.sleep(0.2)  # slow-joiner guard to avoid missing initial msgs
+        time.sleep(0.2)
 
-        writer, f = make_writer(self.storage_path)
+        writer, self.file = make_writer(self.storage_path)
 
         manifest = {
             "version": "1.0",
@@ -79,12 +71,8 @@ class Logger():
 
         writer(json.dumps(manifest))
         
-        # Only install signal handlers when running in main thread (non-threaded mode)
-        if threading.current_thread() is threading.main_thread():
-            signal.signal(signal.SIGINT, self.shutdown)
-            # SIGTERM may not exist on all platforms
-            if hasattr(signal, "SIGTERM"):
-                signal.signal(signal.SIGTERM, self.shutdown)
+        install_signal_handlers(self.shutdown)
+
         try:
             while not self.stop_event.is_set():
                 try:
@@ -94,13 +82,7 @@ class Logger():
 
                 ts = time.time()
 
-                if self.socket_pattern == SocketPattern.PUB_SUB and frames:
-                    topic = encode_frame(frames[0])
-                    enc_frames = encode_frames(frames[1:])
-                else:
-                    # Default behavior for PUSH/PULL: no topic; keep all frames as payload.
-                    topic = ""
-                    enc_frames = encode_frames(frames)
+                topic, enc_frames = process_frames(self.socket_pattern, frames)
 
                 record = {
                     "socket_pattern": self.socket_pattern.value,
@@ -118,12 +100,13 @@ class Logger():
             if self.file:
                 self.file.close()
 
-    def run_threaded_logging(self):
+
+    def run_threaded_logger(self):
         """
         Starts the logger in its own thread.
         """
 
-        self.log_thread = threading.Thread(target=self.log_listener, 
+        self.log_thread = threading.Thread(target=self.run_logger, 
                                       daemon=False)
         self.log_thread.start()
         
