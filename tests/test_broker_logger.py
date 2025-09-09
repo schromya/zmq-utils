@@ -1,7 +1,7 @@
 import threading
 import time
 import zmq
-from zmq_utils.broker import pull_push_broker
+from zmq_utils.broker import push_pull_broker
 from zmq_utils.logger import sub_logger
 
 HOST = '127.0.0.1'
@@ -13,7 +13,7 @@ def run_broker():
     """
     Start the broker
     """
-    pull_push_broker(HOST, PUSH_PORT, HOST, PULL_PORT, HOST, LOG_PORT)
+    push_pull_broker(HOST, PUSH_PORT, HOST, PULL_PORT, HOST, LOG_PORT)
 
 
 def run_logger():

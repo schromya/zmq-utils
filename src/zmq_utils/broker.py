@@ -1,6 +1,6 @@
 import zmq
 
-def pull_push_broker(push_host:str, push_port: int, pull_host:str, pull_port: int, 
+def push_pull_broker(push_host:str, push_port: int, pull_host:str, pull_port: int, 
                      log_host: str, log_port: int):
     """
     Starts a ZeroMQ proxy broker that forwards messages from producers (PUSH) 
