@@ -62,8 +62,6 @@ zmq-broker push_pull \
 
 ### zmq-logger
 
-Start a logger process that connects to a broker’s PUB socket and records all messages.
-
 ```bash
 zmq-logger [options]
 ```
