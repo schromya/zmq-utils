@@ -1,8 +1,8 @@
 from zmq_utils.socket_pattern import SocketPattern
 
-from zmq_utils.utils_frames import process_frames
-from zmq_utils.utils_writer import make_writer
-from zmq_utils.utils_signal import install_signal_handlers
+from zmq_utils.utils.utils_frames import process_frames
+from zmq_utils.utils.utils_writer import make_writer
+from zmq_utils.utils.utils_signal import install_signal_handlers
 
 import time
 import json

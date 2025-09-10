@@ -26,8 +26,8 @@ Issues = "https://github.com/schromya/zmq-utils/issues"
 
 
 [project.scripts]
-zmq-broker = "zmq_utils.cli_broker:main"
-zmq-logger = "zmq_utils.cli_logger:main"
+zmq-broker = "zmq_utils.cli_wrappers.cli_broker:main"
+zmq-logger = "zmq_utils.cli_wrappers.cli_logger:main"
 
 [project.optional-dependencies]
 test = [
